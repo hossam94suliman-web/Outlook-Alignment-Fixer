@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Outlook Alignment Fixer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A1929;
+    --surface:#10233A;
+    --surface-2:#142B45;
+    --line: rgba(126,196,255,0.16);
+    --line-strong: rgba(126,196,255,0.32);
+    --text:#E7EEF5;
+    --muted:#8CA3B8;
+    --amber:#F2A93C;
+    --amber-dim: rgba(242,169,60,0.14);
+    --teal:#52D7C6;
+    --teal-dim: rgba(82,215,198,0.14);
+    --warn:#F2735C;
+    --warn-dim: rgba(242,115,92,0.14);
+    --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --display: 'Space Grotesk', 'Inter', sans-serif;
+    --body: 'Inter', -apple-system, sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      linear-gradient(var(--line) 1px, transparent 1px) 0 0/40px 40px,
+      linear-gradient(90deg, var(--line) 1px, transparent 1px) 0 0/40px 40px,
+      var(--bg);
+    background-attachment: fixed;
+    color:var(--text);
+    font-family:var(--body);
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1280px;margin:0 auto;padding:32px 24px 64px;}
+
+  header{
+    display:flex; align-items:flex-start; justify-content:space-between; gap:24px;
+    padding-bottom:28px; margin-bottom:28px;
+    border-bottom:1px solid var(--line-strong);
+  }
+  .brand{display:flex; align-items:center; gap:14px;}
+  .brand-mark{
+    width:40px;height:40px;border:1.5px solid var(--amber);border-radius:6px;
+    display:flex;align-items:center;justify-content:center;flex-shrink:0;
+    position:relative;
+  }
+  .brand-mark::before,.brand-mark::after{
+    content:'';position:absolute;background:var(--amber);
+  }
+  .brand-mark::before{width:18px;height:1.5px;top:13px;left:9px;}
+  .brand-mark::after{width:1.5px;height:18px;top:9px;left:19px;}
+  h1{font-family:var(--display);font-size:20px;font-weight:600;margin:0;letter-spacing:-0.01em;}
+  .eyebrow{font-family:var(--mono);font-size:11px;color:var(--amber);letter-spacing:0.08em;text-transform:uppercase;margin:0 0 4px;}
+  .tagline{color:var(--muted);font-size:13.5px;margin-top:4px;max-width:560px;line-height:1.5;}
+
+  .scope-pill{
+    font-family:var(--mono); font-size:11px; color:var(--teal);
+    border:1px solid rgba(82,215,198,0.35); background:var(--teal-dim);
+    padding:6px 10px; border-radius:20px; white-space:nowrap;
+  }
+
+  .grid{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
+  @media (max-width:900px){ .grid{grid-template-columns:1fr;} }
+
+  .panel{
+    background:var(--surface);
+    border:1px solid var(--line);
+    border-radius:10px;
+    overflow:hidden;
+    display:flex; flex-direction:column;
+    position:relative;
+  }
+  .panel::before{
+    content:''; position:absolute; top:-1px; left:-1px; width:10px; height:10px;
+    border-top:1.5px solid var(--line-strong); border-left:1.5px solid var(--line-strong);
+  }
+  .panel-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:12px 16px; border-bottom:1px solid var(--line);
+    background:var(--surface-2);
+  }
+  .panel-title{font-family:var(--mono); font-size:12px; color:var(--muted); letter-spacing:0.04em; text-transform:uppercase;}
+  .panel-body{padding:16px; flex:1; display:flex; flex-direction:column; gap:12px; min-height:0;}
+
+  textarea{
+    width:100%; min-height:420px; resize:vertical;
+    background:#08131F; color:var(--text);
+    border:1px solid var(--line); border-radius:6px;
+    padding:12px 14px; font-family:var(--mono); font-size:12.5px; line-height:1.6;
+    outline:none;
+  }
+  textarea:focus{border-color:var(--amber);}
+  textarea::placeholder{color:#4A6178;}
+
+  .row{display:flex; gap:10px; flex-wrap:wrap; align-items:center;}
+  button{
+    font-family:var(--body); font-size:13px; font-weight:600;
+    border-radius:6px; padding:9px 16px; cursor:pointer;
+    border:1px solid transparent; transition:transform 0.08s ease, filter 0.15s ease;
+  }
+  button:active{transform:scale(0.98);}
+  .btn-primary{background:var(--amber); color:#1A1204; border-color:var(--amber);}
+  .btn-primary:hover{filter:brightness(1.08);}
+  .btn-primary:disabled{opacity:0.4; cursor:not-allowed;}
+  .btn-ghost{background:transparent; color:var(--text); border-color:var(--line-strong);}
+  .btn-ghost:hover{border-color:var(--amber); color:var(--amber);}
+  input[type=file]{display:none;}
+  .file-label{
+    font-family:var(--body); font-size:13px; color:var(--muted); cursor:pointer;
+    border:1px dashed var(--line-strong); border-radius:6px; padding:9px 14px;
+  }
+  .file-label:hover{color:var(--amber); border-color:var(--amber);}
+
+  .tabs{display:flex; gap:4px;}
+  .tab{
+    font-family:var(--mono); font-size:11.5px; color:var(--muted);
+    padding:6px 12px; border-radius:5px; cursor:pointer; letter-spacing:0.03em;
+  }
+  .tab.active{background:var(--amber-dim); color:var(--amber);}
+
+  .tabpane{display:none; min-height:420px;}
+  .tabpane.active{display:block;}
+
+  pre#outputCode{
+    background:#08131F; border:1px solid var(--line); border-radius:6px;
+    padding:12px 14px; font-family:var(--mono); font-size:12px; line-height:1.6;
+    max-height:480px; overflow:auto; white-space:pre-wrap; word-break:break-word; margin:0;
+  }
+
+  .log-list{list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:10px;}
+  .log-item{
+    display:flex; gap:10px; padding:10px 12px; border-radius:6px;
+    background:var(--teal-dim); border:1px solid rgba(82,215,198,0.3);
+    font-size:12.5px; line-height:1.55;
+  }
+  .log-item.warn{background:var(--warn-dim); border-color:rgba(242,115,92,0.35);}
+  .log-tag{font-family:var(--mono); font-size:10.5px; color:var(--teal); flex-shrink:0; margin-top:1px;}
+  .log-item.warn .log-tag{color:var(--warn);}
+
+  .empty{
+    color:var(--muted); font-size:13px; text-align:center; padding:60px 20px;
+    border:1px dashed var(--line); border-radius:8px;
+  }
+
+  iframe#previewFrame{
+    width:100%; height:480px; border:1px solid var(--line); border-radius:6px; background:#fff;
+  }
+
+  footer{
+    margin-top:36px; padding-top:20px; border-top:1px solid var(--line);
+    color:var(--muted); font-size:12px; line-height:1.6;
+  }
+  footer code{font-family:var(--mono); background:var(--surface); padding:1px 5px; border-radius:3px;}
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--teal); color:#062420; font-family:var(--body); font-weight:600;
+    font-size:13px; padding:10px 18px; border-radius:8px; opacity:0; pointer-events:none;
+    transition:all 0.25s ease;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <div class="eyebrow">// email / outlook rendering</div>
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <h1>Outlook Alignment Fixer</h1>
+      </div>
+      <div class="tagline">
+        Paste any HTML email template. This rebuilds fluid-hybrid
+        <code style="font-family:var(--mono);color:var(--amber)">display:inline-table</code>
+        column layouts into real Outlook-safe tables — without touching your fonts, spacing, colors, or mobile behavior.
+      </div>
+    </div>
+    <div class="scope-pill">runs 100% in your browser — nothing uploaded</div>
+  </header>
+
+  <div class="grid">
+    <!-- INPUT PANEL -->
+    <div class="panel">
+      <div class="panel-head">
+        <span class="panel-title">Source template</span>
+        <label class="file-label">
+          Upload .html
+          <input type="file" id="fileInput" accept=".html,.htm,text/html">
+        </label>
+      </div>
+      <div class="panel-body">
+        <textarea id="inputCode" placeholder="Paste your email HTML here…"></textarea>
+        <div class="row">
+          <button class="btn-primary" id="convertBtn">Fix alignment →</button>
+          <button class="btn-ghost" id="clearBtn">Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- OUTPUT PANEL -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="tabs">
+          <div class="tab active" data-tab="code">Fixed code</div>
+          <div class="tab" data-tab="log">Changes log</div>
+          <div class="tab" data-tab="preview">Preview</div>
+        </div>
+        <div class="row" id="outputActions" style="display:none;">
+          <button class="btn-ghost" id="copyBtn">Copy</button>
+          <button class="btn-primary" id="downloadBtn">Download</button>
+        </div>
+      </div>
+      <div class="panel-body">
+
+        <div class="tabpane active" data-pane="code">
+          <div id="codeEmpty" class="empty">Converted HTML will appear here.</div>
+          <pre id="outputCode" style="display:none;"></pre>
+        </div>
+
+        <div class="tabpane" data-pane="log">
+          <div id="logEmpty" class="empty">The list of structural fixes applied will appear here.</div>
+          <ul class="log-list" id="logList"></ul>
+        </div>
+
+        <div class="tabpane" data-pane="preview">
+          <div id="previewEmpty" class="empty">A rendered preview of the fixed email will appear here.</div>
+          <iframe id="previewFrame" style="display:none;"></iframe>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <strong style="color:var(--text)">What this fixes:</strong>
+    rebuilds <code>display:inline-table</code> fluid-hybrid columns (the #1 cause of Outlook
+    misalignment) into real <code>&lt;table&gt;&lt;td width="%"&gt;</code> rows, normalizes column widths to
+    sum to 100%, preserves font-family/font-size/color/line-height on every converted element,
+    keeps all classes used by your mobile media queries in their original ancestor order, converts
+    <code>&lt;hr&gt;</code> dividers to Outlook-safe 1px table cells, patches mobile column-stacking
+    rules to work with real table cells, and adds an inline <code>mso-hide:all</code> fallback to any
+    section that's unconditionally <code>display:none</code> outside a media query — protecting against
+    Outlook/Outlook.com configurations that strip <code>&lt;style&gt;</code> blocks and would otherwise
+    make "mobile-only" sections appear duplicated on desktop.<br><br>
+    <strong style="color:var(--text)">What it won't guess at:</strong>
+    real CSS <code>flex</code>/<code>grid</code> layouts are flagged, not auto-converted — rebuilding those
+    safely needs a human decision about column structure. Always give the output a quick visual QA pass
+    before sending.
+  </footer>
+</div>
+
+<div class="toast" id="toast">Copied to clipboard</div>
+
+<script>
+/* ============================================================
+   CONVERSION ENGINE
+   (identical logic to the Node/jsdom-tested version — operates
+   on any Document produced by DOMParser)
+   ============================================================ */
+function convertEmail(doc) {
+  const changes = [];
+  const warnings = [];
+
+  function styleMap(el) {
+    const style = el.getAttribute('style') || '';
+    const map = {};
+    style.split(';').forEach(decl => {
+      const idx = decl.indexOf(':');
+      if (idx === -1) return;
+      const prop = decl.slice(0, idx).trim().toLowerCase();
+      const val = decl.slice(idx + 1).trim();
+      if (prop) map[prop] = val;
+    });
+    return map;
+  }
+
+  function isFluidColumnTable(el) {
+    if (!el || el.tagName !== 'TABLE') return false;
+    const s = styleMap(el);
+    return /inline-table|inline-block/i.test(s['display'] || '');
+  }
+
+  function widthPercentOf(el) {
+    const s = styleMap(el);
+    let m = (s['min-width'] || '').match(/calc\(\s*([\d.]+)%\s*\)/i);
+    if (m) return parseFloat(m[1]);
+    if (/calc\(\s*100%\s*\)/i.test(s['min-width'] || '')) return 100;
+    const cls = el.getAttribute('class') || '';
+    m = cls.match(/(?:tolkien-)?column-(\d+)\b/);
+    if (m) return (parseInt(m[1], 10) / 12) * 100;
+    return null;
+  }
+
+  function baselineStyle(el) {
+    const s = styleMap(el);
+    const out = {};
+    ['font-family', 'font-size', 'color'].forEach(p => { if (s[p]) out[p] = s[p]; });
+    return out;
+  }
+
+  function cellStyleKeep(el) {
+    const s = styleMap(el);
+    const keep = [];
+    ['padding', 'background-color', 'line-height', 'text-align', 'vertical-align'].forEach(p => {
+      if (s[p]) keep.push(p + ':' + s[p]);
+    });
+    return keep.join('; ');
+  }
+
+  function findRows(colTable) {
+    const tbody = colTable.querySelector(':scope > tbody');
+    const scope = tbody || colTable;
+    return Array.from(scope.children).filter(c => c.tagName === 'TR');
+  }
+
+  const allTables = Array.from(doc.querySelectorAll('table'));
+  const parentsWithGroups = new Set();
+  allTables.forEach(t => { if (isFluidColumnTable(t) && t.parentElement) parentsWithGroups.add(t.parentElement); });
+
+  parentsWithGroups.forEach(parent => {
+    const children = Array.from(parent.children);
+    let i = 0;
+    while (i < children.length) {
+      if (!isFluidColumnTable(children[i])) { i++; continue; }
+      const run = [];
+      let j = i;
+      while (j < children.length && isFluidColumnTable(children[j])) { run.push(children[j]); j++; }
+      buildFlatTable(parent, run);
+      i = j;
+    }
+  });
+
+  function buildFlatTable(parent, colTables) {
+    let widths = colTables.map(widthPercentOf);
+    const missing = widths.some(w => w === null);
+    if (missing) { const even = 100 / colTables.length; widths = widths.map(w => (w === null ? even : w)); }
+    const sum = widths.reduce((a, b) => a + b, 0);
+    if (Math.abs(sum - 100) > 0.001) { const diff = 100 - sum; widths[widths.length - 1] = +(widths[widths.length - 1] + diff).toFixed(2); }
+    widths = widths.map(w => +w.toFixed(2));
+
+    const newTable = doc.createElement('table');
+    newTable.setAttribute('role', 'presentation');
+    newTable.setAttribute('width', '100%');
+    newTable.setAttribute('cellspacing', '0');
+    newTable.setAttribute('cellpadding', '0');
+    newTable.setAttribute('style', 'width:100%;');
+    const tr = doc.createElement('tr');
+
+    colTables.forEach((colTable, idx) => {
+      const baseline = baselineStyle(colTable);
+      const td = doc.createElement('td');
+      td.setAttribute('width', widths[idx] + '%');
+      const originalClass = colTable.getAttribute('class');
+      if (originalClass) td.setAttribute('class', originalClass);
+
+      const styleParts = ['vertical-align:top'];
+      if (baseline['font-family']) styleParts.push('font-family:' + baseline['font-family']);
+      if (baseline['font-size']) styleParts.push('font-size:' + baseline['font-size']);
+      if (baseline['color']) styleParts.push('color:' + baseline['color']);
+      td.setAttribute('style', styleParts.join('; ') + ';');
+
+      const rows = findRows(colTable);
+      rows.forEach(tr2 => {
+        const innerTds = Array.from(tr2.children).filter(c => c.tagName === 'TD');
+        innerTds.forEach(innerTd => {
+          const div = doc.createElement('div');
+          const kept = cellStyleKeep(innerTd);
+          if (kept) div.setAttribute('style', kept + ';');
+          const cls = innerTd.getAttribute('class');
+          if (cls) div.setAttribute('class', cls);
+          while (innerTd.firstChild) div.appendChild(innerTd.firstChild);
+          td.appendChild(div);
+        });
+      });
+
+      tr.appendChild(td);
+    });
+
+    newTable.appendChild(tr);
+    parent.insertBefore(newTable, colTables[0]);
+    colTables.forEach(t => t.remove());
+
+    changes.push(`Rebuilt ${colTables.length}-column fluid-hybrid group (display:inline-table) into a flat table row [widths: ${widths.map(w => w + '%').join(', ')}], preserving font-family/font-size/color and all mobile-facing classes.`);
+  }
+
+  const flexGridEls = Array.from(doc.querySelectorAll('*')).filter(el => {
+    const s = styleMap(el);
+    return /^flex$|^grid$|^inline-flex$|^inline-grid$/i.test(s['display'] || '');
+  });
+  if (flexGridEls.length) {
+    warnings.push(`Found ${flexGridEls.length} element(s) using real CSS flexbox/grid (display:flex/grid). Left untouched — auto-converting these risks guessing the wrong column structure. Please review manually.`);
+  }
+
+  const hrs = Array.from(doc.querySelectorAll('hr'));
+  hrs.forEach(hr => {
+    const s = styleMap(hr);
+    const color = s['border-top-color'] || s['border-color'] || '#D9D9D9';
+    const table = doc.createElement('table');
+    table.setAttribute('role', 'presentation'); table.setAttribute('width', '100%');
+    table.setAttribute('cellspacing', '0'); table.setAttribute('cellpadding', '0');
+    const tr = doc.createElement('tr'); const td = doc.createElement('td');
+    td.setAttribute('style', `height:1px; line-height:1px; font-size:1px; background-color:${color};`);
+    td.innerHTML = '&nbsp;';
+    tr.appendChild(td); table.appendChild(tr);
+    hr.parentElement.replaceChild(table, hr);
+  });
+  if (hrs.length) changes.push(`Converted ${hrs.length} <hr> divider(s) to 1px-tall table cells — Outlook ignores CSS on <hr> and renders its own default line.`);
+
+  const styleEls = Array.from(doc.querySelectorAll('style'));
+  let stackingPatched = false;
+  styleEls.forEach(styleEl => {
+    const css = styleEl.textContent || '';
+    const re = /(\.[a-zA-Z0-9_-]+)\s*\{\s*width:\s*100%\s*!important;\s*max-width:\s*100%\s*!important;\s*min-width:\s*auto\s*!important;\s*\}/gi;
+    const patched = css.replace(re, (match, selector) => {
+      if (/display\s*:/.test(match)) return match;
+      stackingPatched = true;
+      return `${selector} { display:block !important; width:100% !important; max-width:100% !important; min-width:auto !important; }`;
+    });
+    if (patched !== css) styleEl.textContent = patched;
+  });
+  if (stackingPatched) changes.push(`Patched the mobile column-stacking media rule to add "display:block !important" — real <td> elements need this to stack on narrow screens the way display:inline-table used to.`);
+
+  function findDefaultHiddenClasses(cssBlocks) {
+    const classes = new Set();
+    cssBlocks.forEach(css => {
+      let stripped = '';
+      let i = 0;
+      while (i < css.length) {
+        if (css.startsWith('@media', i)) {
+          let depth = 0, j = i;
+          while (j < css.length) {
+            if (css[j] === '{') depth++;
+            if (css[j] === '}') { depth--; if (depth === 0) { j++; break; } }
+            j++;
+          }
+          i = j;
+        } else { stripped += css[i]; i++; }
+      }
+      const ruleRe = /([^{}]+)\{([^{}]*)\}/g;
+      let m;
+      while ((m = ruleRe.exec(stripped))) {
+        if (/display\s*:\s*none/i.test(m[2])) {
+          (m[1].match(/\.[a-zA-Z0-9_-]+/g) || []).forEach(c => classes.add(c.slice(1)));
+        }
+      }
+    });
+    return classes;
+  }
+
+  const cssTexts = Array.from(doc.querySelectorAll('style')).map(s => s.textContent || '');
+  const defaultHiddenClasses = findDefaultHiddenClasses(cssTexts);
+  let reinforcedCount = 0;
+  if (defaultHiddenClasses.size) {
+    Array.from(doc.querySelectorAll('*')).forEach(el => {
+      const cls = (el.getAttribute('class') || '').split(/\s+/);
+      if (!cls.some(c => defaultHiddenClasses.has(c))) return;
+      const s = styleMap(el);
+      if (s['display']) return;
+      const existing = el.getAttribute('style') || '';
+      const sep = existing && !existing.trim().endsWith(';') ? '; ' : (existing ? ' ' : '');
+      el.setAttribute('style', existing + sep + 'display:none; mso-hide:all;');
+      reinforcedCount++;
+    });
+  }
+  if (reinforcedCount) {
+    changes.push(`Added an inline "display:none; mso-hide:all;" fallback to ${reinforcedCount} element(s) using ${Array.from(defaultHiddenClasses).map(c => '.' + c).join(', ')} (unconditionally display:none outside any media query). Some Outlook/Outlook.com configurations strip <style> blocks entirely — without this fallback, "mobile-only" sections could stay visible on desktop too, appearing as duplicated content. The mobile media-query override still wins on narrow screens since it uses !important.`);
+  }
+
+  return { changes, warnings };
+}
+
+/* ============================================================
+   UI WIRING
+   ============================================================ */
+const inputCode = document.getElementById('inputCode');
+const fileInput = document.getElementById('fileInput');
+const convertBtn = document.getElementById('convertBtn');
+const clearBtn = document.getElementById('clearBtn');
+const outputActions = document.getElementById('outputActions');
+const outputCode = document.getElementById('outputCode');
+const codeEmpty = document.getElementById('codeEmpty');
+const logList = document.getElementById('logList');
+const logEmpty = document.getElementById('logEmpty');
+const previewFrame = document.getElementById('previewFrame');
+const previewEmpty = document.getElementById('previewEmpty');
+const copyBtn = document.getElementById('copyBtn');
+const downloadBtn = document.getElementById('downloadBtn');
+const toast = document.getElementById('toast');
+
+let lastOutput = '';
+
+fileInput.addEventListener('change', () => {
+  const f = fileInput.files[0];
+  if (!f) return;
+  const reader = new FileReader();
+  reader.onload = e => { inputCode.value = e.target.result; };
+  reader.readAsText(f);
+});
+
+clearBtn.addEventListener('click', () => {
+  inputCode.value = '';
+  outputCode.style.display = 'none'; codeEmpty.style.display = 'block';
+  logList.innerHTML = ''; logEmpty.style.display = 'block';
+  previewFrame.style.display = 'none'; previewEmpty.style.display = 'block';
+  outputActions.style.display = 'none';
+});
+
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tabpane').forEach(p => p.classList.remove('active'));
+    tab.classList.add('active');
+    document.querySelector(`.tabpane[data-pane="${tab.dataset.tab}"]`).classList.add('active');
+  });
+});
+
+convertBtn.addEventListener('click', () => {
+  const src = inputCode.value;
+  if (!src.trim()) return;
+
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(src, 'text/html');
+  const { changes, warnings } = convertEmail(doc);
+
+  const hasHtmlTag = /<html[\s>]/i.test(src);
+  let out;
+  if (hasHtmlTag) {
+    out = '<!DOCTYPE html>\n' + doc.documentElement.outerHTML;
+  } else {
+    out = doc.head.innerHTML.trim() + '\n\n' + doc.body.innerHTML.trim();
+  }
+  lastOutput = out;
+
+  outputCode.textContent = out;
+  outputCode.style.display = 'block'; codeEmpty.style.display = 'none';
+  outputActions.style.display = 'flex';
+
+  logList.innerHTML = '';
+  if (changes.length === 0 && warnings.length === 0) {
+    logEmpty.style.display = 'block';
+  } else {
+    logEmpty.style.display = 'none';
+    changes.forEach(c => {
+      const li = document.createElement('li');
+      li.className = 'log-item';
+      li.innerHTML = `<span class="log-tag">FIX</span><span>${escapeHtml(c)}</span>`;
+      logList.appendChild(li);
+    });
+    warnings.forEach(w => {
+      const li = document.createElement('li');
+      li.className = 'log-item warn';
+      li.innerHTML = `<span class="log-tag">REVIEW</span><span>${escapeHtml(w)}</span>`;
+      logList.appendChild(li);
+    });
+  }
+
+  previewFrame.srcdoc = out;
+  previewFrame.style.display = 'block'; previewEmpty.style.display = 'none';
+});
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+copyBtn.addEventListener('click', () => {
+  navigator.clipboard.writeText(lastOutput).then(() => {
+    toast.classList.add('show');
+    setTimeout(() => toast.classList.remove('show'), 1600);
+  });
+});
+
+downloadBtn.addEventListener('click', () => {
+  const blob = new Blob([lastOutput], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'outlook-safe-email.html';
+  a.click();
+  URL.revokeObjectURL(url);
+});
+</script>
+</body>
+</html>
