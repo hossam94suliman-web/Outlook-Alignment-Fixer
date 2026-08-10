@@ -1157,6 +1157,22 @@ if (bg) {
         }
         node = node.parentElement;
       }
+
+// Flag (read-only) narrow percentage columns in a fluid, pixel-capped row. Outlook
+      // Classic's Word engine unreliably computes small percentage <td> widths (commonly
+      // spacer/margin columns), which can shift content sideways in Classic only – browsers
+      // and modern clients handle percentages fine. Since the row already has a known pixel
+      // cap (maxWidth), converting just this row's widths to pixels is a safe manual fix if
+      // Classic testing shows a shift; this only surfaces the option, it never changes output.
+      if (maxWidth) {
+        const narrowIdx = widths.map((w, i) => ({ w, i })).filter(o => o.w < 15);
+        if (narrowIdx.length) {
+          const capPx = parseFloat(maxWidth);
+          const pxEquivalents = widths.map(w => Math.round(capPx * w / 100) + 'px').join(', ');
+          warnings.push(`This ${colTables.length}-column row uses percentage widths (${widths.map(w => w + '%').join(', ')}) inside a row capped at ${maxWidth}px, including narrow column(s) under 15% – Outlook Classic can miscalculate small percentage <td> widths and shift content sideways in Classic only. If you see this in testing, the safe pixel equivalents (since this row is already capped) are: ${pxEquivalents}.`);
+        }
+      }
+
       let styleStr = 'width:100%; ' + TABLE_RESET_STYLE;
       if (maxWidth) styleStr += ' max-width:' + maxWidth + 'px;';
       let minWidth = null;
@@ -1382,7 +1398,8 @@ innerTable.appendChild(newTbody);
     return !!el.querySelector('img');
   }
   function fixLineHeightRule() {
-    let count = 0, skippedCount = 0, skippedImageOnlyCount = 0, tightFitCount = 0;
+    let count = 0, skippedCount = 0, skippedImageOnlyCount = 0;
+    const tightFitSnippets = [];
     Array.from(doc.querySelectorAll('*')).forEach(el => {
       const s = styleMap(el);
       const lhMatch = (s['line-height'] || '').match(/^(\d+(?:\.\d+)?)px$/i);
@@ -1399,22 +1416,26 @@ innerTable.appendChild(newTbody);
 
       // Flag (but never auto-modify) cases where real text sits with font-size within 2px of
       // line-height – Outlook Classic can crop the bottom of such text under "exactly",
-      // especially for large or Arabic text. Only counts elements with actual non-whitespace
-      // text content, so decorative spacer/button cells (which often set a matching
-      // font-size/line-height pair purely as a sizing hack, not real typography) are excluded.
-      const tight = Array.from(el.querySelectorAll('*')).some(child => {
+      // especially for large or Arabic text. The 2px buffer catches "basically equal" sizes,
+      // not just an exact match, since font-size 1-2px under line-height is still tight enough
+      // to risk clipping taller glyph shapes (diacritics, descenders). Only counts elements with
+      // actual non-whitespace text, so decorative spacer/button cells are excluded.
+      const tightChild = Array.from(el.querySelectorAll('*')).find(child => {
         const cs = styleMap(child);
         const fsMatch = (cs['font-size'] || '').match(/^(\d+(?:\.\d+)?)px$/i);
         return fsMatch && parseFloat(fsMatch[1]) >= lhPx - 2 && child.textContent.replace(/\u00a0/g,'').trim().length > 0;
       });
-      if (tight) tightFitCount++;
+      if (tightChild) {
+        const snippet = tightChild.textContent.replace(/\s+/g,' ').trim().slice(0, 40);
+        tightFitSnippets.push(snippet + (tightChild.textContent.trim().length > 40 ? '…' : ''));
+      }
 
       addStyleProp(el, 'mso-line-height-rule', 'exactly');
       count++;
     });
     if (skippedCount) warnings.push(`Skipped mso-line-height-rule:exactly on ${skippedCount} element(s) that contain text larger than their own line-height – forcing "exactly" there would have clipped that text in Outlook Classic. Review whether that line-height should be moved onto the text run itself instead.`);
     if (skippedImageOnlyCount) changes.push(`Skipped mso-line-height-rule:exactly on ${skippedImageOnlyCount} image-only cell(s) (spacer rows, banners, decorative dividers) – Outlook Classic reserves a full extra phantom text line for "exactly" on top of a block image's own box, which was rendering as a blank gap beneath the image instead of tightening anything.`);
-    if (tightFitCount) warnings.push(`${tightFitCount} element(s) have real text sized within 2px of their own line-height under mso-line-height-rule:exactly – Outlook Classic can crop the bottom of large or Arabic text in this situation (this is what cropped your registration title). Preview these in Outlook Classic; if cropped, manually raise that element's line-height by roughly 15px.`);
+    if (tightFitSnippets.length) warnings.push(`${tightFitSnippets.length} element(s) have text sized within 2px of their own line-height under mso-line-height-rule:exactly, risking cropped text in Outlook Classic (large/Arabic text is most at risk): ${tightFitSnippets.slice(0,5).map(t => `"${t}"`).join(', ')}${tightFitSnippets.length>5 ? ', …' : ''}. Preview these in Outlook Classic; if cropped, manually raise that element's line-height by roughly 15px.`);
     return count;
   }
   const lineHeightCount = fixLineHeightRule();
