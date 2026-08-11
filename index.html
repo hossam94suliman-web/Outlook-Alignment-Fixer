@@ -2028,6 +2028,59 @@ if (marginAutoCenterCount) changes.push(`Added align="center" to ${marginAutoCen
   const ghostWrapCount = wrapFluidRowsForOutlook();
   if (ghostWrapCount) changes.push(`Wrapped ${ghostWrapCount} fluid-hybrid row group(s) in an Outlook "ghost table" – Outlook Classic ignores CSS max-width, so without this the rows (and everything inside them) stretched to the full reading-pane width instead of staying capped.`);
 
+// ---- 19. Explicit font cascade into unstyled text elements (Outlook Classic td fallback) ----
+// Outlook Classic falls back to whatever font an ancestor <td> declares when a text element
+// has no font-family/font-size of its own — and unlike browsers, that fallback can reach
+// several table cells up, not just the nearest one. This walks the real ancestor chain
+// (crossing <td> boundaries, since font-family/font-size are normal inherited CSS properties)
+// to find the value a browser would actually compute, and fills only text-leaf elements that
+// don't already declare their own. Headings (h1-h6) are skipped and flagged instead of
+// auto-filled: their size normally comes from the browser's built-in default, which isn't
+// written anywhere in the markup, so guessing an inherited value for them would bake in the
+// WRONG size for every client, not just Outlook.
+function cascadeFontIntoUnstyledDescendants() {
+  let count = 0;
+  const flaggedHeadings = new Set();
+
+  const textEls = Array.from(doc.querySelectorAll('*')).filter(el =>
+    Array.from(el.childNodes).some(n => n.nodeType === 3 && n.textContent.trim().length > 0)
+  );
+
+  textEls.forEach(el => {
+    const s = styleMap(el);
+    const needsFF = !s['font-family'];
+    const needsFS = !s['font-size'];
+    if (!needsFF && !needsFS) return;
+
+    const headingAncestor = el.closest('h1, h2, h3, h4, h5, h6');
+    if (headingAncestor && needsFS) {
+      flaggedHeadings.add(headingAncestor.textContent.trim().slice(0, 60));
+    }
+
+    let foundFF = null, foundFS = null;
+    let node = el.parentElement;
+    while (node && ((needsFF && !foundFF) || (needsFS && !foundFS && !headingAncestor))) {
+      const ns = styleMap(node);
+      if (needsFF && !foundFF && ns['font-family']) foundFF = ns['font-family'];
+      if (needsFS && !foundFS && !headingAncestor && ns['font-size']) foundFS = ns['font-size'];
+      node = node.parentElement;
+    }
+
+    const toSet = {};
+    if (needsFF && foundFF) toSet['font-family'] = foundFF;
+    if (needsFS && !headingAncestor && foundFS) toSet['font-size'] = foundFS;
+    if (Object.keys(toSet).length) {
+      el.setAttribute('style', setStyleProps(el.getAttribute('style') || '', toSet));
+      count++;
+    }
+  });
+
+  return { count, flaggedHeadings: Array.from(flaggedHeadings) };
+}
+const fontCascadeResult = cascadeFontIntoUnstyledDescendants();
+if (fontCascadeResult.count) changes.push(`Explicitly set font-family/font-size on ${fontCascadeResult.count} text element(s) that didn't declare their own — Outlook Classic falls back to an ancestor <td>'s font instead of properly inheriting, which was silently shrinking/changing text in Classic only.`);
+if (fontCascadeResult.flaggedHeadings.length) warnings.push(`${fontCascadeResult.flaggedHeadings.length} heading(s) have no explicit font-size and rely on the browser's default heading size, which Outlook Classic doesn't apply — it will likely shrink them to match a surrounding cell's font instead. Add an explicit font-size directly to these to guarantee consistent sizing: ${fontCascadeResult.flaggedHeadings.map(h => `"${h}"`).join(', ')}.`);
+  
   return { changes, warnings };
 }
 
