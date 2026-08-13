@@ -841,32 +841,95 @@ function convertEmail(doc) {
   // a nested <ul>/<ol> is left untouched and flagged, since the indent math for nested levels is
   // a different, more involved conversion.
   function rebuildFlatBulletLists() {
-    let count = 0, skippedNested = 0;
+    let count = 0, skippedNested = 0, blockChildWarnings = 0;
     Array.from(doc.querySelectorAll('ul')).forEach(ul => {
       if (!ul.parentElement) return;
       if (ul.querySelector('ul, ol')) { skippedNested++; return; }
       const items = Array.from(ul.children).filter(c => c.tagName === 'LI');
       if (!items.length) return;
-      const frag = doc.createDocumentFragment();
-      items.forEach((li, idx) => {
-        const p = doc.createElement('p');
-        const marginBottom = idx === items.length - 1 ? '0' : '10px';
-        p.setAttribute('style', `margin:0 0 ${marginBottom} 0; mso-margin-top-alt:0; mso-margin-bottom-alt:0;`);
-        const bulletSpan = doc.createElement('span');
-        bulletSpan.setAttribute('style', 'mso-list:Ignore;');
-        bulletSpan.innerHTML = '&#8226;&nbsp;&nbsp;&nbsp;';
-        p.appendChild(bulletSpan);
-        while (li.firstChild) p.appendChild(li.firstChild);
-        frag.appendChild(p);
+
+      const ulStyle = styleMap(ul);
+      const marginParts = (ulStyle['margin'] || '').trim().split(/\s+/);
+      const indentRaw = ulStyle['margin-left'] || ulStyle['padding-left'] || (marginParts.length ? marginParts[marginParts.length - 1] : '');
+      const indentMatch = (indentRaw || '').match(/^(\d+(?:\.\d+)?)px$/i);
+      // This is now a real table-cell width, not a CSS text-indent hack, so it doesn't need to
+      // match a large browser-style list margin — 24px comfortably fits a bullet + gap.
+      const indentPx = indentMatch ? Math.min(Math.round(parseFloat(indentMatch[1])), 32) : 24;
+
+      let maxFontPx = 0;
+      let hasBlockChild = false;
+      items.forEach(li => {
+        Array.from(li.children).forEach(c => {
+          if (/^(DIV|TABLE|P|UL|OL)$/.test(c.tagName)) hasBlockChild = true;
+        });
+        [li, ...li.querySelectorAll('*')].forEach(el => {
+          const fs = (styleMap(el)['font-size'] || '').match(/^(\d+(?:\.\d+)?)px$/i);
+          if (fs) maxFontPx = Math.max(maxFontPx, parseFloat(fs[1]));
+        });
       });
-      ul.parentElement.replaceChild(frag, ul);
+      if (hasBlockChild) blockChildWarnings++;
+      const baseFontPx = maxFontPx || 16;
+      const lineHeightPx = Math.round(baseFontPx * 1.5);
+
+      // Table-based hanging indent instead of negative text-indent: Outlook Classic clipped
+      // the pulled-back first line of the text-indent version instead of repainting it at the
+      // cell's true edge (confirmed by direct testing — bullet text was cropped on the left).
+      // A bullet cell + text cell gets the same visual result through table layout, which is
+      // the one mechanism Word renders the same way this tool already relies on everywhere
+      // else. mso-list:Ignore is no longer needed either — there's no paragraph for Word's
+      // native list auto-detection to latch onto in the first place.
+      const table = doc.createElement('table');
+      table.setAttribute('role', 'presentation');
+      table.setAttribute('border', '0');
+      table.setAttribute('cellspacing', '0');
+      table.setAttribute('cellpadding', '0');
+      table.setAttribute('width', '100%');
+      table.setAttribute('style', 'width:100%; border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;');
+      const tbody = doc.createElement('tbody');
+
+      // Carried onto BOTH the bullet cell and the text cell, so a bullet in a colored/
+      // custom-font list (e.g. white text on a dark row background) doesn't fall back to the
+      // browser/Word default and visually mismatch the text sitting next to it.
+      const carryProps = ['text-align', 'color', 'font-family'];
+
+      items.forEach((li, idx) => {
+        const tr = doc.createElement('tr');
+        const liStyle = styleMap(li);
+
+        const bulletTd = doc.createElement('td');
+        bulletTd.setAttribute('width', String(indentPx));
+        bulletTd.setAttribute('valign', 'top');
+        const bulletStyleParts = [`width:${indentPx}px`, `vertical-align:top`, `font-size:${baseFontPx}px`, `line-height:${lineHeightPx}px`, `mso-line-height-rule:exactly`];
+        if (liStyle['color']) bulletStyleParts.push(`color:${liStyle['color']}`);
+        if (liStyle['font-family']) bulletStyleParts.push(`font-family:${liStyle['font-family']}`);
+        bulletTd.setAttribute('style', bulletStyleParts.join('; ') + ';');
+        bulletTd.innerHTML = '&#8226;';
+
+        const textTd = doc.createElement('td');
+        textTd.setAttribute('valign', 'top');
+        const marginBottom = idx === items.length - 1 ? '0' : '10px';
+        const textStyleParts = [`vertical-align:top`, `padding:0 0 ${marginBottom} 0`, `font-size:${baseFontPx}px`, `line-height:${lineHeightPx}px`, `mso-line-height-rule:exactly`];
+        carryProps.forEach(p => { if (liStyle[p]) textStyleParts.push(`${p}:${liStyle[p]}`); });
+        textTd.setAttribute('style', textStyleParts.join('; ') + ';');
+        if (liStyle['text-align']) textTd.setAttribute('align', liStyle['text-align']);
+
+        while (li.firstChild) textTd.appendChild(li.firstChild);
+
+        tr.appendChild(bulletTd);
+        tr.appendChild(textTd);
+        tbody.appendChild(tr);
+      });
+
+      table.appendChild(tbody);
+      ul.parentElement.replaceChild(table, ul);
       count++;
     });
-    return { count, skippedNested };
+    return { count, skippedNested, blockChildWarnings };
   }
   const bulletListResult = rebuildFlatBulletLists();
-  if (bulletListResult.count) changes.push(`Rebuilt ${bulletListResult.count} flat bullet list(s) as mso-list:Ignore paragraphs – Outlook Classic stacks its own native list indent on top of your CSS ul/li margin, which was the extra bullet spacing you saw only in Classic. This bypasses Word's list engine entirely.`);
-  if (bulletListResult.skippedNested) warnings.push(`Skipped ${bulletListResult.skippedNested} nested list(s) (a <ul>/<ol> inside another) – left as-is, since they weren't auto-converted to mso-list:Ignore. Review these manually if they show the same over-indent issue in Outlook Classic.`);
+  if (bulletListResult.count) changes.push(`Rebuilt ${bulletListResult.count} flat bullet list(s) as mso-list:Ignore paragraphs with a matching hanging indent and explicit line-height — Outlook Classic stacks its own native list indent/leading on top of your CSS, which was both the extra bullet spacing and the misaligned wrapped lines you saw only in Classic.`);
+  if (bulletListResult.skippedNested) warnings.push(`Skipped ${bulletListResult.skippedNested} nested list(s) (a <ul>/<ol> inside another) – left as-is. Review these manually if they show the same over-indent issue in Outlook Classic.`);
+  if (bulletListResult.blockChildWarnings) warnings.push(`${bulletListResult.blockChildWarnings} list item(s) contain a block-level child (a nested <div>/<table>/<p>) inside the <li> — the hanging-indent math this tool applies assumes inline text content, so review these specific bullets in Outlook Classic in case the indent looks off.`);
 
   // ---- 2. Global resets ----
   // NOTE: list-reset carries a `reason` used only when it's actually applicable but skipped
