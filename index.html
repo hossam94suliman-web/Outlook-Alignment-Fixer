@@ -384,6 +384,10 @@ function fixClippingLineHeight(img, heightPx, lineHeightChanges) {
 async function resolveImageDimensions(doc) {
   const changes = [];
   const warnings = [];
+  function addSignatureComment(doc) {
+  const signature = doc.createComment(' Converted by Hossam Suliman — Outlook Email Fixer ');
+  if (doc.body) doc.body.appendChild(signature);
+}
   const targets = Array.from(doc.querySelectorAll('img'));
 
   let resolvedCount = 0;
@@ -2143,7 +2147,8 @@ function cascadeFontIntoUnstyledDescendants() {
 const fontCascadeResult = cascadeFontIntoUnstyledDescendants();
 if (fontCascadeResult.count) changes.push(`Explicitly set font-family/font-size on ${fontCascadeResult.count} text element(s) that didn't declare their own — Outlook Classic falls back to an ancestor <td>'s font instead of properly inheriting, which was silently shrinking/changing text in Classic only.`);
 if (fontCascadeResult.flaggedHeadings.length) warnings.push(`${fontCascadeResult.flaggedHeadings.length} heading(s) have no explicit font-size and rely on the browser's default heading size, which Outlook Classic doesn't apply — it will likely shrink them to match a surrounding cell's font instead. Add an explicit font-size directly to these to guarantee consistent sizing: ${fontCascadeResult.flaggedHeadings.map(h => `"${h}"`).join(', ')}.`);
-  
+
+  addSignatureComment(doc);
   return { changes, warnings };
 }
 
