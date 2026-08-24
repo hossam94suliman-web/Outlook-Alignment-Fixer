@@ -384,10 +384,7 @@ function fixClippingLineHeight(img, heightPx, lineHeightChanges) {
 async function resolveImageDimensions(doc) {
   const changes = [];
   const warnings = [];
-  function addSignatureComment(doc) {
-  const signature = doc.createComment(' Converted by Hossam Suliman — Outlook Email Fixer ');
-  if (doc.body) doc.body.appendChild(signature);
-}
+  
   const targets = Array.from(doc.querySelectorAll('img'));
 
   let resolvedCount = 0;
@@ -640,6 +637,10 @@ function extractBoxStyleParts(cellEl, hexColorFn) {
 function convertEmail(doc) {
   const changes = [];
   const warnings = [];
+  function addSignatureComment(doc) {
+  const signature = doc.createComment(' Converted by Hossam Suliman — Outlook Email Fixer ');
+  if (doc.body) doc.body.appendChild(signature);
+}
   const TABLE_RESET_STYLE = 'border-collapse:collapse; mso-table-lspace:0pt; mso-table-rspace:0pt;';
 
   // ---- 0.5 Promote class-based CSS onto inline styles (see promoteClassStylesToInline above) ----
