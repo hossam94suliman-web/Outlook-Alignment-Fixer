@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://outlook-email-fixer.netlify.app/sitemap.xml
